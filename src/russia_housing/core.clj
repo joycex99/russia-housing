@@ -114,10 +114,11 @@
 
 
 (defn fill-impute
+  "Given a dataset, fill missing values ('NA) with the mean value of the feature"
   [dataset]
   (let [feature-map (dataset->feature-map dataset)
         means (get-means feature-map)
-        ;; map over each feature, map over each list of values, if NA then mean
+        ;; for each feature, map over each list of values, if NA then fill with mean
         imputed-feat-vals (for [feature feature-map
                                 :let [feat-name (key feature)
                                       feat-vals (val feature)]]
@@ -147,40 +148,38 @@
       (mapv (fn [d l] {:data d :label l}) imputed-data labels))))
 
 
-;; (def dataset
-;;   (future
-;;     (let [ind-data (with-open [infile (io/reader data-file)]
-;;                      (rest (doall (csv/read-csv infile))))
-;;           data (->> ind-data
-;;                     (map rest)                ; drop first col (label)
-;;                     (map #(map read-string %)))
-;;           labels (->> ind-data
-;;                       (map first)
-;;                       (map read-string))]
-;;       (mapv (fn [d l] {:data d :label l}) data labels))))
 
-;; (defn infinite-dataset
-;;   "Given a finite dataset, generate an infinite sequence of maps partitioned
-;;   by :epoch-size"
-;;   [map-seq & {:keys [epoch-size]
-;;               :or {epoch-size 1024}}]
-;;   (->> (repeatedly #(shuffle map-seq))
-;;        (mapcat identity)
-;;        (partition epoch-size)))
+(defn infinite-dataset
+  "Given a finite dataset, generate an infinite sequence of maps partitioned
+  by :epoch-size"
+  [map-seq & {:keys [epoch-size]
+              :or {epoch-size 1024}}]
+  (->> (repeatedly #(shuffle map-seq))
+       (mapcat identity)
+       (partition epoch-size)))
 
 
-;; (def network-description
-;;   [(layers/input (count (:data (first @dataset))) 1 1 :id :data)
-;;    (layers/linear->relu 8)
-;;    (layers/linear 1 :id :label)])
+(def network-description
+  [(layers/input (count (:data (first @dataset))) 1 1 :id :data)
+   (layers/linear->relu 512)
+   (layers/dropout 0.9)
+   (layers/linear->relu 256)
+   (layers/dropout 0.9)
+   (layers/linear->relu 128)
+   (layers/linear->relu 32)
+   (layers/dropout 0.8)
+   (layers/linear->relu 8)
+   (layers/linear 1 :id :label)])
 
-;; (defn train
-;;   "Trains network for :epoch-count number of epochs"
-;;   []
-;;   (let [network (network/linear-network network-description)
-;;         [train-ds test-ds] [(infinite-dataset (drop (:test-size params) @dataset))
-;;                             (take (:test-size params) @dataset)]]
-;;     (experiment-train/train-n network train-ds test-ds
-;;                               :batch-size (:batch-size params)
-;;                               :epoch-count (:epoch-count params)
-;;                               :optimizer (:optimizer params))))
+
+(defn train
+  "Trains network for :epoch-count number of epochs"
+  []
+  (println network-description)
+  (let [network (network/linear-network network-description)
+        [train-ds test-ds] [(infinite-dataset (drop (:test-size params) @dataset))
+                            (take (:test-size params) @dataset)]]
+    (experiment-train/train-n network train-ds test-ds
+                              :batch-size (:batch-size params)
+                              :epoch-count (:epoch-count params)
+                              :optimizer (:optimizer params))))
