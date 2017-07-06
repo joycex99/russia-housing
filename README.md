@@ -1,10 +1,6 @@
-# russia-housing
+# Russian property sale model
 
-A Clojure library designed to ... well, that part is up to you.
-
-## Usage
-
-FIXME
+Deep learning regression model in Cortex.
 
 ## License
 

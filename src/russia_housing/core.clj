@@ -34,13 +34,6 @@
                              %))
                         row))))))
 
-(defn write-csv [data-map path]
-  (let [columns (keys (first data-map))
-        headers (map name columns)
-        rows (mapv #(mapv % columns) data-map)]
-    (with-open [file (io/writer path)]
-      (csv/write-csv file (cons headers rows)))))
-
 
 (defn convert-date
   "Given a base day and a current day in 'year-month-day' string format,
@@ -94,7 +87,7 @@
           dataset features))
 
 
-(defn dataset->feature-map
+(defn- dataset->feature-map
   "Given a dataset (seq of maps, one per data point),
   return a map of {:feature_name [data for this feature]}"
   [dataset]
@@ -108,13 +101,13 @@
   "Given a dataset, return a map of each feature to its mean value (ignoring NA's)"
   [feature-map]
   (let [feat-names (keys feature-map)
-        filled-feats (map (fn [elem] (filter #(not= 'NA %) elem)) (vals feature-map))
-        means (map #(/ (reduce + %) (count %)) filled-feats)]
+        existing-feats (map (fn [elem] (filter #(not= 'NA %) elem)) (vals feature-map))
+        means (map #(/ (reduce + %) (count %)) existing-feats)]
     (zipmap feat-names means)))
 
 
 (defn fill-impute
-  "Given a dataset, fill missing values ('NA) with the mean value of the feature"
+  "Given a dataset, fill missing values (NA) with the mean value of the feature"
   [dataset]
   (let [feature-map (dataset->feature-map dataset)
         means (get-means feature-map)
@@ -173,7 +166,7 @@
 
 
 (defn train
-  "Trains network for :epoch-count number of epochs"
+  "Train the network! Uses default MSE loss as error function."
   []
   (println network-description)
   (let [network (network/linear-network network-description)
