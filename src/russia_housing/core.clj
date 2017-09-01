@@ -8,6 +8,8 @@
             [cortex.metrics :as metrics]
             [cortex.util :as util]
             [cortex.experiment.train :as experiment-train]
+            [cortex.experiment.util :as experiment-util]
+            [clojure.string :as s]
             [clj-time.core :as t]
             [clj-time.format :as f]))
 
@@ -17,6 +19,7 @@
   {:test-size   1920
    :optimizer   (adam/adam)
    :batch-size  128
+   :epoch-count 1000
    :epoch-size  1024})
 
 (defn csv->maps
@@ -44,37 +47,6 @@
         current (f/parse formatter current-day)]
     (t/in-days (t/interval base current))))
 
-
-(defn label->one-hot
-  "Given a vector of class-names and a label, return a one-hot vector based on
-  the position in class-names.
-  E.g.  (label->vec [:a :b :c :d] :b) => [0 1 0 0]"
-  [class-names label]
-  (let [num-classes (count class-names)
-        src-vec (vec (repeat num-classes 0))
-        label-idx (.indexOf class-names label)]
-    (when (= -1 label-idx)
-      (throw (ex-info "Label not in classes for label->one-hot"
-                      {:class-names class-names :label label})))
-    (assoc src-vec label-idx 1)))
-
-
-(defn one-hot-encoding
-  "Given a dataset and a list of categorical features, returns a new dataset with these
-  features encoded into one-hot indicators
-
-  E.g. (one-hot-encoding [{:a :left} {:a :right} {:a :top}] [:a])
-         => [{:a_0 1 :a_1 0 :a_2 0} {:a_0 0 :a_1 1 :a_2 0} {:a_0: 0 :a_1 0 :a_2 1}]"
-  [dataset features]
-  (reduce (fn [mapseq key]
-            (let [classes (set (map key mapseq))
-                  new-keys (for [i (range (count classes))]
-                             (keyword (str (name key) "_" i)))] ; a_0, a_1, a_2, etc.
-              (map (fn [elem] (->> (label->one-hot (vec classes) (key elem))
-                                   (zipmap new-keys)
-                                   (merge (dissoc elem key))))
-                   mapseq)))
-          dataset features))
 
 (defn convert-numerical
   "Given a dataset, a list of features to convert, and a value to match,
@@ -130,7 +102,7 @@
           conv-data (as-> csv-data d
                       (map #(dissoc % :id) d) ; drop id column
                       (map #(assoc % :timestamp (convert-date base-day (:timestamp %))) d)
-                      (one-hot-encoding d [:sub_area :ecology])
+                      (experiment-util/one-hot-encoding d [:sub_area :ecology])
                       (convert-numerical d [:product_type] 'Investment)
                       (convert-numerical d [:culture_objects_top_25 :thermal_power_plant_raion :water_1line
                                             :incineration_raion :oil_chemistry_raion :radiation_raion
